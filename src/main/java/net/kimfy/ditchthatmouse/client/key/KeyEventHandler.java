@@ -10,11 +10,12 @@ import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.input.Keyboard;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 public class KeyEventHandler
 {
@@ -22,21 +23,20 @@ public class KeyEventHandler
     {
     }
 
-    private final Counter         COUNTER                     = new Counter(0, 0);
-    private final List<GuiButton> buttonsInLastInitializedGui = new LinkedList<>();
+    private final Counter         COUNTER    = new Counter(0, 0);
+    private final List<GuiButton> buttonList = new LinkedList<>();
 
     @SubscribeEvent
     public void initGuiEvent(GuiScreenEvent.InitGuiEvent.Post screenEvent)
     {
         DitchThatMouse.LOGGER.info("Initializing Screen {}", screenEvent.getGui().getClass());
-        buttonsInLastInitializedGui.clear();
+        buttonList.clear();
         this.firstOperation = true;
         this.COUNTER.reset();
-        buttonsInLastInitializedGui.addAll(screenEvent.getButtonList());
-        this.COUNTER.setMax(buttonsInLastInitializedGui.size() - 1);
+        buttonList.addAll(screenEvent.getButtonList());
+        this.COUNTER.setMax(buttonList.size() - 1);
     }
 
-    private int clickCount = 0;
     private long eventTime;
     private long timeSinceLastEvent;
 
@@ -65,30 +65,28 @@ public class KeyEventHandler
     public void onKeyEvent(GuiScreenEvent.KeyboardInputEvent e)
     {
         if (!this.enoughTimeHasPassed())
+        {
             return;
+        }
 
         if (Keyboard.isKeyDown(Keyboard.KEY_TAB))
         {
             this.handleOperation(Operation.NEXT);
-            this.clickCount++;
-            DitchThatMouse.LOGGER.info("NEXT, clickCount={}", clickCount);
+            DitchThatMouse.LOGGER.info("NEXT");
         }
         else if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT))
         {
             this.handleOperation(Operation.BACK);
-            this.clickCount++;
-            DitchThatMouse.LOGGER.info("BACK, clickCount={}", clickCount);
+            DitchThatMouse.LOGGER.info("BACK");
         }
         else if (Keyboard.isKeyDown(Keyboard.KEY_RETURN))
         {
-            this.clickCount++;
-            DitchThatMouse.LOGGER.info("ENTER, clickCount={}", clickCount);
+            DitchThatMouse.LOGGER.info("ENTER");
             if (this.selectedButton != null)
             {
                 try
                 {
                     this.pressButton(e.getGui(), this.selectedButton);
-                    this.selectedButton = null;
                 }
                 catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException exception)
                 {
@@ -98,85 +96,70 @@ public class KeyEventHandler
         }
     }
 
-    /*
-     *                if (guibutton.mousePressed(this.mc, mouseX, mouseY))
-                {
-                    net.minecraftforge.client.event.GuiScreenEvent.ActionPerformedEvent.Pre event = new net.minecraftforge.client.event.GuiScreenEvent.ActionPerformedEvent.Pre(this, guibutton, this.buttonList);
-                    if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event))
-                        break;
-                    guibutton = event.getButton();
-                    this.selectedButton = guibutton;
-                    guibutton.playPressSound(this.mc.getSoundHandler());
-                    this.actionPerformed(guibutton);
-                    if (this.equals(this.mc.currentScreen))
-                        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.client.event.GuiScreenEvent.ActionPerformedEvent.Post(this, event.getButton(), this.buttonList));
-                }
-
-     */
-    public GuiButton selectedButton = null;
-    private boolean firstOperation = true;
-
-
+    public  GuiButton selectedButton = null;
+    private boolean   firstOperation = true;
 
     private void handleOperation(Operation operation)
     {
-        int numOfButtonsInGui = buttonsInLastInitializedGui.size();
-        if (numOfButtonsInGui <= 0 && !this.forcePopulateButtons())
+        int numOfButtonsInGui = buttonList.size();
+        if (numOfButtonsInGui <= 0 && !this.populateWithButtonsInCurrentGui())
+        {
             return;
+        }
         int index = this.getIndex(operation);
-        this.selectedButton = buttonsInLastInitializedGui.get(index);
+        this.selectedButton = buttonList.get(index);
         DitchThatMouse.LOGGER.info("Button={}", this.selectedButton.displayString);
     }
 
-    // Returns true if successful
-    private boolean forcePopulateButtons()
+    private boolean populateWithButtonsInCurrentGui()
     {
-        Minecraft mc = Minecraft.getMinecraft();
-        GuiScreen gui = mc.currentScreen;
-        if (gui != null)
+        GuiScreen screen = Minecraft.getMinecraft().currentScreen;
+        if (screen != null)
         {
-            Class<?> clz = gui.getClass();
-            Field btns = ReflectionHelper.findField(clz, "buttonList");
-
-            @SuppressWarnings("unchecked") List<GuiButton> buttons = null;
-            try
-            {
-                buttons = (List<GuiButton>) btns.get(gui);
-            }
-            catch (IllegalAccessException e)
-            {
-                e.printStackTrace();
-            }
-
-            if (buttons != null && !buttons.isEmpty())
-            {
-                this.buttonsInLastInitializedGui.addAll(buttons);
-                return true;
-            }
+            this.buttonList.addAll(screen.buttonList);
+            return true;
         }
         return false;
     }
+
+    private Map<Class<?>, Method> methodCache = new HashMap<>();
 
     private void pressButton(GuiScreen gui, GuiButton button) throws NoSuchMethodException, InvocationTargetException,
             IllegalAccessException
     {
         Class<?> clz = gui.getClass();
+        Method method = methodCache.containsKey(clz)
+                        ? methodCache.get(clz)
+                        : ReflectionHelper
+                                .findMethod(clz, new String[] {"a", "mouseClicked"}, int.class, int.class, int.class);
+        if (method == null)
+        {
+            DitchThatMouse.LOGGER
+                    .error("Couldn't find method {}.mouseClicked(int, int, int). Report this to the mod author",
+                           clz.getName());
+            return;
+        }
+        else if (!methodCache.containsKey(clz))
+        {
+            methodCache.put(clz, method);
+        }
+
         int x = button.xPosition;
         int y = button.yPosition;
         button.enabled = true;
 
         try
         {
-            Method method = net.kimfy.ditchthatmouse.util.ReflectionHelper
-                    .findMethod(clz, "mouseClicked", int.class, int.class, int.class);/*clz
-            .getDeclaredMethod
-            ("mouseClicked", int.class, int.class, int.class);*/
-            method.setAccessible(true);
             method.invoke(gui, x, y, 0);
+        }
+        catch (Exception exception)
+        {
+            exception.printStackTrace();
         }
         finally
         {
-            buttonsInLastInitializedGui.clear();
+            this.selectedButton = null;
+            buttonList.clear();
         }
     }
 
