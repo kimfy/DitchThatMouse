@@ -5,7 +5,9 @@ import net.kimfy.ditchthatmouse.util.Counter;
 import net.kimfy.ditchthatmouse.util.ReflectionHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.*;
+import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.settings.GameSettings;
+import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.input.Keyboard;
@@ -124,22 +126,35 @@ public class KeyEventHandler
     @SubscribeEvent
     public void onKeyEvent(GuiScreenEvent.KeyboardInputEvent e)
     {
-        if (!this.enoughTimeHasPassed())
+        if (!this.enoughTimeHasPassed() || this.currentGui instanceof GuiContainer ||
+            this.currentGui instanceof GuiChat)
         {
             return;
         }
 
-        if (Keyboard.isKeyDown(Keyboard.KEY_TAB))
+        if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT))
         {
-            this.handleOperation(Operation.NEXT);
+            if (Keyboard.isKeyDown(Keyboard.KEY_TAB))
+            {
+                this.execute(Operation.BACK);
+            }
+
+            if (Keyboard.isKeyDown(Keyboard.KEY_ADD))
+            {
+                this.execute(Operation.ADD, 0.1F);
+            }
+            else if (Keyboard.isKeyDown(Keyboard.KEY_SUBTRACT))
+            {
+                this.execute(Operation.MINUS, 0.1F);
+            }
         }
-        else if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT))
+        else if (Keyboard.isKeyDown(Keyboard.KEY_TAB))
         {
-            this.handleOperation(Operation.BACK);
+            this.execute(Operation.NEXT);
         }
-        else if (Keyboard.isKeyDown(Keyboard.KEY_RETURN))
+        else if (Keyboard.isKeyDown(Keyboard.KEY_RETURN) || Keyboard.isKeyDown(Keyboard.KEY_SPACE))
         {
-            if (this.selectedButton != null)
+            if (this.selectedButton != null && !(this.selectedButton instanceof GuiOptionSlider))
             {
                 try
                 {
@@ -151,44 +166,74 @@ public class KeyEventHandler
                 }
             }
         }
-        // TODO: Implement properly
         else if (Keyboard.isKeyDown(Keyboard.KEY_ADD))
         {
-            this.handleOperation(Operation.ADD);
-            boolean isButtonASlider = this.selectedButton instanceof GuiOptionSlider;
-            if (isButtonASlider)
-            {
-                ((GuiOptionSlider) this.selectedButton).sliderValue -= .1F;
-            }
+            this.execute(Operation.ADD, 0.01F);
         }
-        // TODO: Implement properly
-        else if (Keyboard.isKeyDown(Keyboard.KEY_MINUS))
+        else if (Keyboard.isKeyDown(Keyboard.KEY_SUBTRACT))
         {
-            this.handleOperation(Operation.MINUS);
-            boolean isButtonASlider = this.selectedButton instanceof GuiOptionSlider;
-            if (isButtonASlider)
-            {
-                ((GuiOptionSlider) this.selectedButton).sliderValue -= .1F;
-            }
+            this.execute(Operation.MINUS, 0.01F);
         }
     }
 
     public  GuiButton selectedButton = null;
     private boolean   firstOperation = true;
 
-    private void handleOperation(Operation operation)
+    private void execute(Operation operation)
     {
         this.getButtonsInCurrentGUI();
         int index = this.getIndex(operation);
         try
         {
-            this.selectedButton = this.buttonList.get(index);
+            this.selectedButton = this.getNextValidButton(operation, index); //this.buttonList.get(index);
         }
         catch (IndexOutOfBoundsException e)
         {
             e.printStackTrace();
         }
-        DitchThatMouse.LOGGER.info("Button={}", this.selectedButton.displayString);
+        if (this.selectedButton != null)
+        {
+            DitchThatMouse.LOGGER.info("Button={}", this.selectedButton.displayString);
+        }
+    }
+
+    private void execute(Operation operation, float multiplier)
+    {
+        boolean isButtonASlider = this.selectedButton instanceof GuiOptionSlider;
+        if (isButtonASlider)
+        {
+            if (operation == Operation.ADD)
+            {
+                ((GuiOptionSlider) this.selectedButton).sliderValue += multiplier;
+            }
+            else if (operation == Operation.MINUS)
+            {
+                ((GuiOptionSlider) this.selectedButton).sliderValue -= multiplier;
+            }
+
+            ((GuiOptionSlider) this.selectedButton).sliderValue =
+                    MathHelper.clamp_float(((GuiOptionSlider) this.selectedButton).sliderValue, 0.0F, 1.0F);
+            float f = ((GuiOptionSlider) this.selectedButton).options
+                    .denormalizeValue(((GuiOptionSlider) this.selectedButton).sliderValue);
+            Minecraft.getMinecraft().gameSettings
+                    .setOptionFloatValue(((GuiOptionSlider) this.selectedButton).options, f);
+            ((GuiOptionSlider) this.selectedButton).sliderValue =
+                    ((GuiOptionSlider) this.selectedButton).options.normalizeValue(f);
+            ((GuiOptionSlider) this.selectedButton).displayString = Minecraft.getMinecraft().gameSettings
+                    .getKeyBinding(((GuiOptionSlider) this.selectedButton).options);
+        }
+
+    }
+
+    private GuiButton getNextValidButton(Operation operation, int index)
+    {
+        GuiButton button = this.buttonList.get(index);
+        if (!button.enabled)
+        {
+            int newIndex = this.getIndex(operation);
+            button = getNextValidButton(operation, newIndex);
+        }
+        return button;
     }
 
     private boolean getButtonsInCurrentGUI()
@@ -232,7 +277,6 @@ public class KeyEventHandler
 
         int xPos = button.xPosition;
         int yPos = button.yPosition;
-        button.enabled = true;
 
         try
         {
@@ -241,11 +285,6 @@ public class KeyEventHandler
         catch (Exception exception)
         {
             exception.printStackTrace();
-        }
-        finally
-        {
-            this.selectedButton = null;
-            buttonList.clear();
         }
     }
 
