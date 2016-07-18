@@ -14,4 +14,4 @@ DTM is a mod that lets you navigate GUIs/menus with your keyboard. Very handy fo
 
 ### Preview
 
-![Preview]()
+![Preview](http://i.imgur.com/eSmpva1.gifv)
