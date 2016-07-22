@@ -12,6 +12,10 @@ public class Counter
         this.max = max;
     }
 
+    public Counter()
+    {
+    }
+
     public void setMin(int min)
     {
         this.min = min;

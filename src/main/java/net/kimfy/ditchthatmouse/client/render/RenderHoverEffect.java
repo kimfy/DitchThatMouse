@@ -1,6 +1,6 @@
 package net.kimfy.ditchthatmouse.client.render;
 
-import net.kimfy.ditchthatmouse.client.ClientProxy;
+import net.kimfy.ditchthatmouse.client.GuiTraverser;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraftforge.client.event.GuiScreenEvent;
@@ -11,9 +11,9 @@ public class RenderHoverEffect
     @SubscribeEvent
     public void onDrawScreen(GuiScreenEvent.DrawScreenEvent e)
     {
-        if (ClientProxy.KEY_EVENT_HANDLER.selectedButton != null)
+        GuiButton button = GuiTraverser.INSTANCE.getSelectedButton();
+        if (button != null && button.visible)
         {
-            GuiButton button = ClientProxy.KEY_EVENT_HANDLER.selectedButton;
             Minecraft mc = Minecraft.getMinecraft();
             int mouseX = button.xPosition;
             int mouseY = button.yPosition;
