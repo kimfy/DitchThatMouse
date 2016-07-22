@@ -14,6 +14,7 @@ public class KeyEventHandler
     public KeyEventHandler()
     {}
 
+    private long eventTime;
     private final GuiTraverser GUI_TRAVERSER = GuiTraverser.INSTANCE;
 
     @SubscribeEvent
@@ -21,8 +22,6 @@ public class KeyEventHandler
     {
         this.GUI_TRAVERSER.initialize(screenEvent);
     }
-
-    private long eventTime;
 
     /**
      * Returns true if it's been 20 milliseconds since last time method was called. Used because

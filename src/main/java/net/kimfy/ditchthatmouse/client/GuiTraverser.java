@@ -125,6 +125,12 @@ public class GuiTraverser
             methodCache.put(clz, method);
         }
 
+        if (this.getSelectedButton() == null)
+        {
+            DitchThatMouse.LOGGER.error("Tried pressing button, but button was null, so we ain't gon' press it");
+            return;
+        }
+
         int xPos = this.getSelectedButton().xPosition;
         int yPos = this.getSelectedButton().yPosition;
 
