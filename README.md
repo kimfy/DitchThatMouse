@@ -15,7 +15,7 @@ DTM is a mod that lets you navigate GUIs/menus with your keyboard. Very handy fo
 * <kbd>SHIFT</kbd>+<kbd>-</kbd> Decrement value for slider buttons by 10
 
 ### Good to know
-* Buttons are sorted from top left to right by getting their x/y positions on the screen. Sorting logic can be found here [KeyEventHandler#SORT_VERSO_RECTO](https://github.com/kimfy/DitchThatMouse/blob/master/src/main/java/net/kimfy/ditchthatmouse/client/key/KeyEventHandler.java#L30).
+* Buttons are sorted from top left to right by getting their x/y positions on the screen. Sorting logic can be found here [KeyEventHandler#SORT_LEFT_RIGHT](https://github.com/kimfy/DitchThatMouse/blob/master/src/main/java/net/kimfy/ditchthatmouse/client/ui/GuiUtil.java#L16).
 
 ### Contribute?
 Go ahead!
