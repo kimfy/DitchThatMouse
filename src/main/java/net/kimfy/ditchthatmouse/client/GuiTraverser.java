@@ -24,7 +24,8 @@ public class GuiTraverser
     private List<GuiButton> buttonList = new LinkedList<>();
 
     /**
-     * Whether or not we're on the first operation. Used to determine which index to use on the first execute() call
+     * Whether or not we're on the first operation on the current screen. Used to determine which index to use on the
+     * first execute() call.
      */
     private boolean firstOperation = true;
     @Nullable
@@ -32,7 +33,7 @@ public class GuiTraverser
     @Nullable
     private GuiButton selectedButton = null;
 
-    public GuiTraverser()
+    private GuiTraverser()
     {
         this.COUNTER = new Counter();
     }
@@ -49,7 +50,7 @@ public class GuiTraverser
 
     private void debug()
     {
-        DitchThatMouse.LOGGER.info("Initializing GUI: {}", this.getCurrentScreen().getClass());
+        DitchThatMouse.LOGGER.info("Initializing GUI: {}", this.getCurrentScreen().getClass().getName());
         DitchThatMouse.LOGGER.info("Buttons:");
         this.getButtonList().forEach(button -> DitchThatMouse.LOGGER
                 .info("Button: {}, x={}, y={}", button.displayString, button.xPosition, button.yPosition));
@@ -163,13 +164,13 @@ public class GuiTraverser
     {
         if (operation == GuiTraverser.Operation.NEXT)
         {
-            if (!this.firstOperation)
+            if (!this.isFirstOperation())
             {
                 this.COUNTER.increment(1);
             }
             else
             {
-                this.firstOperation = false;
+                this.setFirstOperation(false);
             }
         }
         else if (operation == GuiTraverser.Operation.BACK)
@@ -237,9 +238,12 @@ public class GuiTraverser
         this.selectedButton = selectedButton;
     }
 
+    /**
+     * @see GuiTraverser#firstOperation
+     */
     public boolean isFirstOperation()
     {
-        return this.firstOperation;
+        return this.isFirstOperation();
     }
 
     private void setFirstOperation(boolean firstOperation)
